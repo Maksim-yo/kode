@@ -74,7 +74,8 @@ private slots:
 
         e.seed(std::chrono::system_clock::now().time_since_epoch().count());
         std::list<std::string> type{"Человек","Машина","Здание","Дерево","..."};
-        std::ifstream fread("C:/Users/lyzlo//Documents/testing/text.txt");
+        std::filesystem::path placeholder = std::filesystem::current_path()/"data.txt";
+        std::ifstream fread(placeholder);
         std::list<std::string> words;
         if(fread.is_open()){
             std::string line;
@@ -84,7 +85,7 @@ private slots:
         }
 
 
-        std::ofstream fwrite(std::filesystem::current_path());
+        std::ofstream fwrite(std::filesystem::current_path()/"test.txt");
         if (!fwrite.is_open())
             return ;
 

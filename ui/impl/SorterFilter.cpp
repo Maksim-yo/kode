@@ -40,7 +40,7 @@ QList<Group> SorterFilter::groupByName(QList<ObjectItem*>& data){
             if (groups.isEmpty())
                 groups.emplace_back(qt_str, i, i);
 
-            if (groups.last().name != qt_str)
+            else if (groups.last().name != qt_str)
                 groups.emplace_back(qt_str, i, i);
             Group& _group = groups.last();
             _group.end++;

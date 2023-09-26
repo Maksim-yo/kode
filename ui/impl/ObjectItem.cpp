@@ -21,7 +21,10 @@ namespace UI {
     {
         emit layoutAboutToBeChanged();
         QList<Group> _groups = sorter(objects);
-        updateGroups(_groups);
+        if (_groups.size() > groups.size())
+            setGroups(_groups);
+        else
+            updateGroups(_groups);
         emit layoutChanged();
     }
 
