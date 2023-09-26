@@ -14,7 +14,6 @@ Item {
     property int border_width: 0
     property int textSize: 16
     signal clicked()
-//    signal clicked()
 
     Button {
 

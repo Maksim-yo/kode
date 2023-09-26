@@ -22,15 +22,6 @@ namespace UI {
 
     };
 
-    enum SortType {
-
-        Distance,
-        Name,
-        Time,
-        Type,
-        None,
-    };
-
 
     std::string_view convertObjectType(objectType type);
 
@@ -61,22 +52,17 @@ namespace UI {
         void onSortMethodChanged(QString, int n);
     signals:
         void addSaved(QVariantMap data);
-        void saved(UI::ObjectItem* itm);
         void sortMethodChanged(QString, int n = -1);
         void readFile(QString path);
     private:
         object readObject(std::u16string str);
-        QMap<QString, QList<ObjectItem*>> converter(std::map<std::u16string, std::list<object>> data);
-        std::map<std::u16string, std::list<object>> converter(QMap<QString, QList<ObjectItem *> >  data);
-        std::list<object> converter(QList<ObjectItem*> data);
         QList<ObjectItem*> converter(std::list<object> data);
-
+        object converter(ObjectItem* obj);
         QList<ObjectItem*> convertToList(QMap<QString, QList<ObjectItem*>> data);
-        void updateModel(SortType type, int n = 0);
+        void updateModel(int type, int n = 0);
         std::unique_ptr<FileHandler> file;
         std::unique_ptr<SorterFilter> filter;
         ObjectItemList* model;
-        SortType currentSort{SortType::None};
     };
 }
 #endif // UIHANDLER_H

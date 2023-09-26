@@ -11,6 +11,9 @@ Dialog {
     focus: true
     height: 150
     width: 300
+    x: (parent.width - width) / 2
+    y: (parent.height - height) / 2
+
     property alias text: num_count.text
 
         RowLayout {

@@ -20,7 +20,6 @@ ApplicationWindow {
                 text: qsTr("&New...")
                 onTriggered: fileDialog.open()
 
-
             }
         }
 

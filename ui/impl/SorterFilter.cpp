@@ -1,39 +1,63 @@
 #include <list>
+#include <math.h>
+#include <functional>
+#include <QList>
 
 #include "ui/SorterFilter.hpp"
+#include "ui/UIHandler.hpp"
 #include "utils/utils.hpp"
-#include <math.h>
+#include "utils/error.hpp"
+namespace {
+
+    bool contains(const QList<UI::Group>& groups, QString name){
+
+        auto it = std::find_if(groups.begin(), groups.end(),
+                               [&name](UI::Group group) -> bool { return group.name == name;});
+        return it != groups.end();
+    }
+
+
+}
 
 namespace UI {
 
+QList<Group> SorterFilter::groupByName(QList<ObjectItem*>& data){
 
-std::map<std::u16string, std::list<object>> SorterFilter::groupByName(std::list<object> data){
+        std::sort(data.begin(), data.end(),
+              [](const ObjectItem* a, const ObjectItem* b) -> bool { return a->name() < b->name();});
 
-        std::map<std::u16string, std::list<object>> groups;
-        for(auto&& elm : data){
+        QList<Group> groups;
+        for(int i = 0; i < data.size();i++){
 
-            char16_t key = static_cast<char16_t>(elm.name[0]);
+            char16_t key = static_cast<char16_t>(data[i]->name().toStdU16String()[0]);
             if (!Utils::isCyrillica(key))
                 key = u'#';
 
             std::u16string char_str;
             char_str.push_back(key);
-            if (!groups.contains(char_str))
-                groups[char_str] = {};
+            QString qt_str = QString::fromStdU16String(char_str);
 
-            std::list<object>& _data = groups[char_str];
-            _data.emplace_front(elm);
-            // O(n)
-            _data.sort([](const object& a, const object& b){ return a.name < b.name;});
+            if (groups.isEmpty())
+                groups.emplace_back(qt_str, i, i);
+
+            if (groups.last().name != qt_str)
+                groups.emplace_back(qt_str, i, i);
+            Group& _group = groups.last();
+            _group.end++;
+
         }
         return groups;
 
     }
 
-    std::map<std::u16string, std::list<object> > SorterFilter::groupByDistance(std::list<object> data)
+    QList<Group> SorterFilter::groupByDistance(QList<ObjectItem*>& data)
     {
         std::array<int,3> dist{100,1000,10000};
-        std::map<std::u16string, std::list<object>> groups;
+
+        std::sort(data.begin(), data.end(),
+              [](const ObjectItem* a, const ObjectItem* b) -> bool { return a->x() < b->x();});
+
+        QList<Group> groups(4);
 
         auto isCorrrectForDistance = [](double num, int dist) -> bool{
             num = std::abs(num);
@@ -46,98 +70,152 @@ std::map<std::u16string, std::list<object>> SorterFilter::groupByName(std::list<
             return false;
         };
 
-        for(auto&& elm : data){
+        for(int i = 0; i < data.size();i++){
 
             DistanceSort sort_type = DistanceSort::ToFarAway;
-            for (int i = 0; i < dist.size(); i++){
+            for (int j = 0; j < dist.size(); j++){
 
-                if (!isCorrrectForDistance(elm.x, dist[i]) && !isCorrrectForDistance(elm.y, dist[i]))
-                    continue;
-                sort_type = static_cast<DistanceSort>(i);
+                if (isCorrrectForDistance(data[i]->x(), dist[j]) && isCorrrectForDistance(data[i]->y(), dist[j])) {
+                    sort_type = static_cast<DistanceSort>(j);
+                    break;
+                }
+
             }
 
             std::u16string key = convertDistance(sort_type);
-            if (!groups.contains(key))
-                groups[key] = {};
+            QString qt_str = QString::fromStdU16String(key);
 
-            std::list<object>& _data = groups[key];
-            _data.emplace_front(elm);
-            // O(n)
-            _data.sort([](const object& a, const object& b){ return a.x > b.x;});
+            if (groups[convertDistance(key)] == Group())
+                groups[convertDistance(key)] = {qt_str, i,i};
+            else
+                groups[convertDistance(key)].end++;
 
         }
-        return groups;
+        QList<Group> sorted_groups(4);
+        for(const auto& grp: groups)
+            sorted_groups[convertDistance(grp.name.toStdU16String())] = grp;
+
+        return sorted_groups;
     }
 
-    std::map<std::u16string, std::list<object> > SorterFilter::groupByType(std::list<object> data, int n)
+    QList<Group> SorterFilter::groupByType(QList<ObjectItem*>& data, int n)
     {
-        std::map<std::u16string, std::list<object>> groups;
+        std::sort(data.begin(), data.end(),
+              [](const ObjectItem* a, const ObjectItem* b) -> bool { return a->type() < b->type();});
+
+        QList<Group> groups;
         std::array<int, 5> object_count{0,0,0,0,0};
-        for(auto&& elm : data){
+        for(int i = 0; i < data.size();i++){
 
-            std::u16string key;
-            object_count[elm.type]++;
-            Utils::fromUTF8(std::string(convertObjectType(elm.type)), key);
-            if (!groups.contains(key))
-                groups[key] = {};
+            std::u16string key = data[i]->type().toStdU16String();
+            QString qt_str = QString::fromStdU16String(key);
+            object_count[convertOjbectType(data[i]->type().toStdString())]++;
 
-            std::list<object>& data = groups[key];
-            data.emplace_front(elm);
-            // O(n)
-            data.sort([](const object& a, const object& b){ return a.name < b.name;});
+            if (groups.isEmpty())
+                groups.emplace_back(qt_str, i, i);
+
+            if (groups.last().name != qt_str)
+                groups.emplace_back(qt_str, i, i);
+
+            Group& _group = groups.last();
+            _group.end++;
+        }
+
+        for(const auto& elm: groups){
+            int start = elm.start;
+            int end = elm.end;
+            std::sort(data.data() + start , data.data() + end, [](const ObjectItem* a, const ObjectItem* b) -> bool { return a->name() < b->name();});
 
         }
-        int object_type_size = 5;
+        std::sort(groups.begin(), groups.end(),
+                  [](const Group a,const Group b) -> bool { return a.end - a.start < b.end - b.start;});
+
+        auto _it = std::find_if(groups.begin(), groups.end(), [&n](const Group& group){return (group.end - group.start) <= n;});
+
+        if (_it == groups.end())
+            return groups;
+
         std::u16string key = u"Разное";
-        for (int i = 0; i < object_type_size; i++){
+        QString str = QString::fromStdU16String(key);
 
-            if (object_count[i] > n)
-                continue;
-            if (!groups.contains(key))
-                groups[key] = {};
-            std::u16string cur_key;
-            Utils::fromUTF8(std::string(convertObjectType(static_cast<objectType>(i))), cur_key);
-            std::list<object>& _data_elm = groups[cur_key];
-            std::list<object>& _data = groups[key];
-            std::transform(_data_elm.begin(), _data_elm.end(), std::back_inserter(_data), [](object obj){return obj;} );
-            groups.erase(cur_key);
+        QList<Group> temp;
+        QList<ObjectItem*> new_data;
+
+        Group another_group;
+        another_group.name = str;
+        bool isAnother = false;
+        for(auto it = groups.begin(); it != groups.end(); it++ ){
+
+            if (it == _it){
+                another_group.start = new_data.size();
+                another_group.end = new_data.size();
+                isAnother = true;
+            }
+
+            if (isAnother){
+                another_group.end += it->end - it->start;
+                new_data.append(data.sliced(it->start, it->end - it->start));
+
+            }
+            else {
+                int new_start = new_data.size();
+                new_data.append(data.sliced(it->start, it->end - it->start));
+                it->start = new_start;
+                it->end = new_data.size() - new_start;
+            }
         }
-        if (groups.contains(key)) {
-            std::list<object>& _data =groups[key];
-            _data.sort([](const object& a, const object& b){ return a.name < b.name;});
-        }
+        data = new_data;
+        groups.clear();
+        if (_it != groups.begin())
+            groups = {groups.begin(), _it - 1};
+
+        groups.append(another_group);
+        int start = another_group.start;
+        int end = another_group.end;
+        std::sort(data.data() + start , data.data() + end, [](const ObjectItem* a, const ObjectItem* b) -> bool { return a->name() < b->name();});
+
         return groups;
 
     }
 
-    std::map<std::u16string, std::list<object>> SorterFilter::groupByTime(std::list<object> data){
+    QList<Group> SorterFilter::groupByTime(QList<ObjectItem*>& data){
 
         auto cur_time = Utils::getCurrentTime();
         std::chrono::year_month_day ymd{std::chrono::floor<std::chrono::days>(cur_time)};
         auto[year_cur, month_cur, day_cur] = Utils::get_year_month_day(ymd);
         auto weekday_cur = Utils::getWeekDay(cur_time);
-        std::map<std::u16string, std::list<object>> groups;
+        std::sort(data.begin(), data.end(),
+              [](const ObjectItem* a, const ObjectItem* b) -> bool { return a->timeCreation() < b->timeCreation();});
 
-        for(auto&& elm : data){
+        QList<Group> groups;
+        for(int i = 0; i < data.size();i++){
 
-            auto elm_time = Utils::convertMilisecsToSecs(elm.time);
+            auto elm_time = Utils::convertMilisecsToSecs(data[i]->timeCreation());
             std::chrono::year_month_day ymd_elm{std::chrono::floor<std::chrono::days>(elm_time)};
             auto[year, month, day] = Utils::get_year_month_day(ymd_elm);
             auto weekday = Utils::getWeekDay(elm_time);
             TimeCreation time_type = getTimeCreation(day_cur,month_cur, year_cur, weekday_cur.c_encoding(), day, month, year, weekday.c_encoding());
             std::u16string key = convertTimeCreation(time_type);
-            if (!groups.contains(key))
-                groups[key] = {};
+            QString qt_str = QString::fromStdU16String(key);
 
-            std::list<object>& data = groups[key];
-            data.emplace_front(elm);
-            // O(n)
-            data.sort([](const object& a, const object& b){ return a.time > b.time;});
+            if (groups.isEmpty())
+                groups.emplace_back(qt_str, i, i);
+
+            if (groups.last().name != qt_str)
+                groups.emplace_back(qt_str, i, i);
+
+            Group& _group = groups.last();
+            _group.end++;
         }
-        return groups;
+
+        QList<Group> sorted_groups(6);
+        for(const auto& grp: groups)
+            sorted_groups[convertTimeCreation(grp.name.toStdU16String())] = grp;
+
+        return sorted_groups;
     }
 
-    std::map<std::u16string, std::list<object> > SorterFilter::sort(std::list<object> data, SortType type, int n)
+    QList<Group>  SorterFilter::sort(QList<ObjectItem*>& data, SortType type, int n)
     {
 
         switch (type){
@@ -150,9 +228,9 @@ std::map<std::u16string, std::list<object>> SorterFilter::groupByName(std::list<
         case UI::SortType::Type:
             return groupByType(data, n);
         case UI::SortType::None: {
-            std::map<std::u16string, std::list<object> > res;
-            res.emplace(u"", data);
-            return res;
+            QList<Group> groups;
+            groups.emplace_back("", 0, data.size());
+            return groups;
             }
         }
     }
@@ -175,6 +253,25 @@ std::map<std::u16string, std::list<object>> SorterFilter::groupByName(std::list<
         }
     }
 
+    SorterFilter::TimeCreation SorterFilter::convertTimeCreation(std::u16string time)
+    {
+
+        if (time == u"Сегодня")
+            return SorterFilter::Today;
+        if (time == u"Вчера")
+            return SorterFilter::Yesterday;
+        if (time == u"На этой недели")
+            return SorterFilter::InThisWeek;
+        if (time == u"В этом месяце")
+            return SorterFilter::InThisMonth;
+        if (time == u"В этом году")
+            return SorterFilter::InThisYear;
+        if (time == u"Ранее")
+            return SorterFilter::Before;
+
+        throw BaseError("unsupported enum string");
+    }
+
     std::u16string SorterFilter::convertDistance(DistanceSort time)
     {
         switch(time){
@@ -187,9 +284,23 @@ std::map<std::u16string, std::list<object>> SorterFilter::groupByName(std::list<
             return u"До 10000 ед.";
         case UI::SorterFilter::ToFarAway:
             return u"Слишком далеко.";
+
         }
     }
 
+    SorterFilter::DistanceSort SorterFilter::convertDistance(std::u16string dist)
+    {
+            if (dist == u"До 100 ед.")
+                return UI::SorterFilter::To100;
+            if (dist == u"До 1000 ед.")
+                return UI::SorterFilter::To1000;
+            if (dist == u"До 10000 ед.")
+                return UI::SorterFilter::To10000;
+            if (dist == u"Слишком далеко.")
+                return UI::SorterFilter::ToFarAway;
+            throw BaseError("unsupported enum string");
+
+    }
 
     SorterFilter::TimeCreation SorterFilter::getTimeCreation(int day_cur, int month_cur, int year_cur, int day_week_cur, int day,int month, int year, int day_week){
 
@@ -206,8 +317,4 @@ std::map<std::u16string, std::list<object>> SorterFilter::groupByName(std::list<
         else
             return TimeCreation::Before;
     }
-
-
-
-
 }

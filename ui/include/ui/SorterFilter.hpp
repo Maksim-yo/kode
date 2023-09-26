@@ -4,37 +4,15 @@
 #include <string>
 #include <unordered_map>
 #include <list>
-#include "ui/UIHandler.hpp"
-#include <QSortFilterProxyModel>
+#include "ui/ObjectItem.hpp"
 
 namespace UI {
-
-//    class MySortFilterProxyModel : public QSortFilterProxyModel
-//    {
-//        Q_OBJECT
-
-//        Q_ENUMS(SortTypes)
-
-//    public:
-//        enum SortTypes {
-//            Distance = Qt::UserRole + 1,
-//            Name,
-//            Time,
-//            Type,
-//            None,
-//        };
-
-
-//        MySortFilterProxyModel(QObject *parent = 0);
-
-//    protected:
-//        bool lessThan(const QModelIndex &left, const QModelIndex &right) const override;
-//    };
 
     class SorterFilter {
 
     public:
         SorterFilter() = default;
+        ~SorterFilter() = default;
         enum TimeCreation {
 
             Today,
@@ -55,15 +33,17 @@ namespace UI {
 
         };
 
-        std::map<std::u16string, std::list<object>> groupByName(std::list<object> data);
-        std::map<std::u16string, std::list<object>> groupByDistance(std::list<object> data);
-        std::map<std::u16string, std::list<object>> groupByType(std::list<object> data, int n);
-        std::map<std::u16string, std::list<object>> groupByTime(std::list<object> data);
-        std::map<std::u16string, std::list<object>> sort(std::list<object> data, SortType type, int n = 0);
+        QList<Group> groupByName(QList<ObjectItem*>& data);
+        QList<Group> groupByDistance(QList<ObjectItem*>&  data);
+        QList<Group> groupByType(QList<ObjectItem*>&  data, int n);
+        QList<Group> groupByTime(QList<ObjectItem*>&  data);
+        QList<Group> sort(QList<ObjectItem*>&  data, SortType type, int n = 0);
 
     private:
         std::u16string convertTimeCreation(TimeCreation time);
+        TimeCreation convertTimeCreation(std::u16string);
         std::u16string convertDistance(DistanceSort time);
+        DistanceSort convertDistance(std::u16string );
         TimeCreation getTimeCreation(int day_cur, int month_cur, int year_cur, int day_week_cur, int day,int month, int year, int day_week);
 
     };

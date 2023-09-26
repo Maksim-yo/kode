@@ -20,9 +20,7 @@ Item {
                 delegate: ObjectGroup {
                     group_data: model.group_data
                     group_name: model.group_name
-//                    Layout.preferredHeight: 100
                     Layout.fillHeight: true
-//                    implicitWidth: root.width
                     Layout.fillWidth: true
                 }
 

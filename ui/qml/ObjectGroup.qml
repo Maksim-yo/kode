@@ -17,10 +17,10 @@ Item {
         Layout.fillWidth: true
 
         Loader {
-            Layout.fillWidth: true
-
+            id: loader
             sourceComponent: grp_name
-            active : root.group_name ? true : false
+            active: root.group_name ? true : false
+            Layout.fillWidth: true
             Component {
                 id: grp_name
                 Rectangle {
@@ -34,13 +34,13 @@ Item {
                         Layout.fillHeight: true
                         Layout.fillWidth: true
 
-
                         Text {
                             text: root.group_name
                             font.bold: true
                             font.pixelSize: root.pixelSize
                         }
                  }
+
             }
             }
 

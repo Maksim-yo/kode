@@ -81,10 +81,11 @@ Menu {
                             root._selected_index = index
                             root.click(model.name)
                             root.close()
-                            dlg.open()
+
                             if (model.name != "По типу")
                                 handler.sortMethodChanged(model.name)
-
+                            else
+                                dlg.open()
                     }
                 }
             }

@@ -1,4 +1,6 @@
 #include "ui/ObjectItem.hpp"
+#include "ui/SorterFilter.hpp"
+#include <QElapsedTimer>
 
 namespace UI {
 
@@ -15,63 +17,114 @@ namespace UI {
         return roles;
     }
 
+    void ObjectItemList::sort(int column, Qt::SortOrder order)
+    {
+        emit layoutAboutToBeChanged();
+        QList<Group> _groups = sorter(objects);
+        updateGroups(_groups);
+        emit layoutChanged();
+    }
+
+    void ObjectItemList::sort(function_sorter func, int column)
+    {
+        sorter = func;
+        sort(column);
+    }
+
+    ObjectItemList::~ObjectItemList() = default;
+
+    ObjectItemList::ObjectItemList()
+    {
+        // for optimization
+        QList<Group> groups;
+        for(int i = 0;i < 6; i++)
+            groups.emplace_back(Group());
+        setGroups(groups);
+    }
+
     int ObjectItemList::rowCount(const QModelIndex & parent) const {
         if (parent.isValid())
             return 0;
-        return objectList.count();
+        return groups.count();
     }
 
     QVariant ObjectItemList::data(const QModelIndex &index, int role) const
     {
-        if (index.row() < 0 || index.row() >= objectList.count())
+        if (index.row() < 0 || index.row() >= groups.count())
             return QVariant();
-        auto start =  objectList.begin();
-        int c = 0;
-        for(; start != objectList.end(); start++, c++) {
-            if (c == index.row())
-                break;
-        }
-        QString group_name = start.key();
-        QList<UI::ObjectItem*> items = start.value();
+
+        Group group = groups.at(index.row());
+
         if (role == GroupNameRole)
-            return group_name;
+            return group.name;
         if (role == GroupDataRole) {
             QVariantList res;
-            std::transform(items.begin(), items.end(), std::back_inserter(res), [](ObjectItem* itm){return QVariant::fromValue(itm);});
-            return QVariant::fromValue(res);
+            QList<ObjectItem*> sub_list = objects.mid(group.start, group.end - group.start);
+            return QVariant::fromValue(sub_list);
         }
-
     }
 
-    void ObjectItemList::addItem(QString group_name, ObjectItem* item)
+    void ObjectItemList::addItem(ObjectItem* item)
     {
-        beginInsertRows(QModelIndex(), objectList.size(), objectList.size());
-        bool isExist = objectList.contains(group_name);
-        if (!isExist)
-            objectList.insert(group_name, {item});
-        else
-            objectList[group_name].append(item);
+        emit layoutAboutToBeChanged();
+        beginInsertRows(QModelIndex(),0,0);
+        objects.push_back(item);
         endInsertRows();
+
+        QList<Group> data = groups;
+
+        auto comparison = [](const Group& a, const Group& b)
+            {
+                return a.end < b.end;
+            };
+
+        QList<Group>::iterator max = std::max_element(data.begin(), data.end(), comparison);
+        max->end++;
+        updateGroups(data);
+        emit layoutChanged();
     }
 
-    void ObjectItemList::setList(QMap<QString, QList<ObjectItem*>> items)
+    void ObjectItemList::updateGroups(QList<Group> data)
+    {
+        QElapsedTimer timer;
+        timer.start();
+        for(int i =0;i < groups.size(); i++){
+            if (i < data.size() && data[i] == groups[i])
+                continue;
+            else if (i < data.size())
+                groups[i] = data[i];
+            else
+                groups[i] = Group();
+
+            dataChanged(index(i), index(i));
+
+     }
+    }
+
+    void ObjectItemList::setGroups(QList<Group> _groups)
     {
         beginResetModel();
-        objectList = items;
+        groups = _groups;
         endResetModel();
-
     }
 
-    QMap<QString, QList<ObjectItem*>> ObjectItemList::getList() const
+    void ObjectItemList::setList(QList<ObjectItem *> data)
     {
-        return objectList;
+        QList<Group> group;
+        bool isSorter = sorter ? true : false;
+        group.emplace_back("", 0, data.size());
+        beginResetModel();            
+        objects = data;
+        endResetModel();
+        if (isSorter)
+            sort(0);
+        else
+            updateGroups(group);
     }
 
     bool ObjectItemList::setData(const QModelIndex &index, const QVariant &value, int role)
     {
         if (!hasIndex(index.row(), index.column(), index.parent()) || !value.isValid())
             return false;
-
     }
-
 }

@@ -11,6 +11,8 @@ Dialog {
     title: ""
     standardButtons: Dialog.Save | Dialog.Cancel
     focus: true
+    x: (parent.width - width) / 2
+    y: (parent.height - height) / 2
 
     ColumnLayout {
         anchors.fill: parent
@@ -78,6 +80,7 @@ Dialog {
 
     onAccepted: {
         var a = {'name':name.default_text, 'x':x_data.default_text, 'y': y_data.default_text, 'time_creation':time_creation.default_text, 'type':type.currentText}
+        handler.addSaved(a)
     }
 
 }

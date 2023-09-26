@@ -17,7 +17,6 @@ Item {
         id:container
         color: back_color
         anchors.fill: parent
-
         ColumnLayout {
 
             anchors.fill: parent

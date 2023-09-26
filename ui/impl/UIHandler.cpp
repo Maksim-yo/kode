@@ -25,7 +25,6 @@ namespace UI {
     UIHandler::~UIHandler() = default;
     UIHandler::UIHandler(ObjectItemList* model, std::unique_ptr<SorterFilter> filter) : model(model), filter(std::move(filter)) {
 
-
         connect(this, &UIHandler::addSaved,  this, &UIHandler::onAddSaved);
         connect(this, &UIHandler::readFile, this, &UIHandler::onReadFile);
         connect(this, &UIHandler::sortMethodChanged, this, &UIHandler::onSortMethodChanged);
@@ -38,7 +37,13 @@ namespace UI {
         QString name = data.value("name").toString();
         double time = data.value("time_creation").toDouble();
         UI::ObjectItem* itm = new UI::ObjectItem(name, x, y, type, time);
-        emit saved(itm);
+
+        model->addItem(itm);
+        object obj = converter(itm);
+        std::stringstream str;
+        str << obj;
+        file->write(std::move(str));
+
     }
 
     void UIHandler::onReadFile(QString path)
@@ -62,14 +67,12 @@ namespace UI {
 
             catch (const BaseError& err) {
 
-                std::cout << "Couldn't read object at line: " << line << "." << err.what();
+                qDebug() << "Couldn't read object at line: " << line << "." << err.what();
             }
             line++;
         }
-        QMap<QString, QList<ObjectItem*>> _map;
-        _map.insert("", converter(objects));
-        currentSort = SortType::None;
-        model->setList(_map);
+        QList<ObjectItem*> _list{converter(objects)};
+        model->setList(_list);
     }
 
     void UIHandler::onSortMethodChanged(QString name, int n)
@@ -89,10 +92,6 @@ namespace UI {
     object UIHandler::readObject(std::u16string str)
     {
         object _obj;
-//        std::string_view a = "gf sgdfg ";
-//        std::string_view b = " ";
-//        std::vector<std::string_view> ad = Utils::split(a, b);
-
         auto str_view = std::u16string_view(str);
         std::vector<std::u16string_view> data = Utils::split(str_view, std::u16string_view(u" "));
         if (data.size() != 5)
@@ -100,7 +99,7 @@ namespace UI {
 
         try {
 
-            _obj.name = data[0];
+            _obj.name = {data[0].begin(), data[0].end()};
             _obj.x = std::stod(view_converter((data[1])));
             _obj.y = std::stod(view_converter(data[2]));
             _obj.type = convertOjbectType(view_converter(data[3]));
@@ -113,42 +112,6 @@ namespace UI {
 
     }
 
-    QMap<QString, QList<ObjectItem *> > UIHandler::converter(std::map<std::u16string, std::list<object> > data)
-    {
-        QMap<QString, QList<ObjectItem *> > converted_data;
-        for(const auto& elm : data){
-
-            QList<ObjectItem*> items;
-            for (const auto& obj: elm.second) {
-
-                items.push_back(new ObjectItem(Utils::toUTF8(obj.name).c_str(), obj.x, obj.y, convertObjectType(obj.type).data(), obj.time));
-            }
-            QString group_name = Utils::toUTF8(elm.first).c_str();
-            bool isExist = converted_data.contains(group_name);
-            if (!isExist)
-                converted_data.insert(group_name, items);
-            else
-                converted_data[group_name].append(items);
-        }
-
-        return converted_data;
-
-    }
-
-    std::list<object> UIHandler::converter(QList<ObjectItem *> data)
-    {
-        std::list<object> res;
-        for(const auto& obj : data){
-            object _obj;
-            Utils::fromUTF8(obj->name().toStdString(), _obj.name);
-            _obj.x = obj->x();
-            _obj.y = obj->y();
-            _obj.type = convertOjbectType(obj->type().toStdString());
-            _obj.time  = obj->timeCreation();
-            res.emplace_back(_obj);
-        }
-        return res;
-    }
 
     QList<ObjectItem *> UIHandler::converter(std::list<object> data)
     {
@@ -161,51 +124,15 @@ namespace UI {
         return items;
     }
 
-    QList<ObjectItem *> UIHandler::convertToList(QMap<QString, QList<ObjectItem *> > data)
+    object UIHandler::converter(ObjectItem *obj)
     {
-        QList<ObjectItem *> res;
-        for(const auto& key : data.keys()){
-            std::list<object> items;
-
-            for (const auto& obj: data[key]) {
-
-                res.push_back(obj);
-            }
-        }
-        return res;
+        return {obj->name().toStdU16String(), convertOjbectType(obj->type().toStdString()),obj->x(),obj->y(),obj->timeCreation()};
     }
 
-    std::map<std::u16string, std::list<object>> converter(QMap<QString, QList<ObjectItem *> >  data){
-
-        std::map<std::u16string, std::list<object>> converted_data;
-        for(const auto& key : data.keys()){
-            std::list<object> items;
-
-            for (const auto& obj: data[key]) {
-                object _obj;
-                Utils::fromUTF8(obj->name().toStdString(), _obj.name);
-                _obj.x = obj->x();
-                _obj.y = obj->y();
-                _obj.type = convertOjbectType(obj->type().toStdString());
-                _obj.time  = obj->timeCreation();
-                items.emplace_back(_obj);
-            }
-
-            std::u16string group_name;
-            Utils::fromUTF8(key.toStdString(), group_name);
-            bool isExist = converted_data.contains(group_name);
-            if (!isExist)
-                converted_data[group_name] =  items;
-
-        }
-        return converted_data;
-    }
-    void UIHandler::updateModel(SortType type, int n)
+    void UIHandler::updateModel(int type, int n)
     {
-        QList<ObjectItem*> data = convertToList(model->getList());
-        std::map<std::u16string, std::list<object>> sorted_data = filter->sort(converter(data), type,n);
-        auto converted_data = converter(sorted_data);
-        model->setList(converted_data);
+        auto func = std::bind(&SorterFilter::sort, filter.get(),  std::placeholders::_1, static_cast<SortType>(type), n);
+        model->sort(func);
     }
     std::ostream& operator<<(std::ostream& os, const object& t){
 

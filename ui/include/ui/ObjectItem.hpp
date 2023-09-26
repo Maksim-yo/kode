@@ -3,9 +3,34 @@
 
 #include <QObject>
 #include <QAbstractListModel>
-
 namespace UI {
 
+
+    enum SortType {
+
+        Distance,
+        Name,
+        Time,
+        Type,
+        None,
+    };
+
+    struct Group {
+
+        QString name{};
+        int start{0};
+        int end{0};
+
+        friend bool operator==(const Group& a, const Group& b){
+
+            return a.name == b.name && a.start == b.start && a.end == b.end;
+        }
+    };
+
+    class ObjectItem;
+    class SorterFilter;
+
+    using function_sorter = std::function<QList<Group>(QList<ObjectItem*>& data)>;
 
     class ObjectItem : public QObject
     {
@@ -39,6 +64,7 @@ namespace UI {
 
     };
 
+
     class ObjectItemList : public  QAbstractListModel
     {
 
@@ -46,40 +72,39 @@ namespace UI {
         Q_OBJECT
         Q_ENUMS(MusicRoles)
 
+
     public:
 
-        using QAbstractListModel::QAbstractListModel;
 
         enum MusicRoles {
             GroupNameRole = Qt::UserRole + 1,
             GroupDataRole,
         };
 
-        ~ObjectItemList(){}
+        ObjectItemList();
+        ~ObjectItemList();
         int rowCount(const QModelIndex & parent = QModelIndex()) const override;
         QVariant data(const QModelIndex & index, int role) const override;
-        void addItem(QString group_name, ObjectItem* item);
         bool setData(const QModelIndex &index, const QVariant &value, int role) override;
-        void clear();
-        void update(QVector<ObjectItem> data);
-        void modifyData(std::function<void(ObjectItem& item)> function);
-        void setList(QMap<QString, QList<ObjectItem*>> items);
-        QMap<QString, QList<ObjectItem*>>  getList() const;
+        void addItem(ObjectItem* item);
+        void updateGroups(QList<Group> data);
+        void setGroups(QList<Group> groups);
+        void setList(QList<ObjectItem*> data);
         QHash<int, QByteArray> roleNames() const override;
+        void sort(int column, Qt::SortOrder order = Qt::AscendingOrder) override;
+        void sort(function_sorter func, int column = 0);
+
     signals:
-        void nameClicked(int index);
-        void nameChanged();
-        void durationChanged();
-        void artistChanged();
-        void listenersChanged();
-        void imageChanged();
-        void modelChanged(QVector<UI::ObjectItem*> temp);
         // USED IN QML as onModelUpdate()
         void modelUpdate();
 
     private:
-        QMap<QString, QList<ObjectItem*>> objectList;
+        QList<Group> groups;
+        QList<ObjectItem*> objects;
+        function_sorter sorter;
 
     };
+
+
 }
 #endif // OBJECTITEM_HPP
