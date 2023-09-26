@@ -1,6 +1,6 @@
 #include "utils/utils.hpp"
 #include <codecvt>
-
+//#include
 namespace Utils {
 
 
@@ -22,13 +22,20 @@ namespace Utils {
 
     }
 
-    // incorrect working
     bool isCyrillica(char16_t chr)
     {
-        std::u16string a = u"а";
-        std::u16string z = u"я";
-        std::u16string A = u"А";
-        std::u16string Z = u"Я";
+        std::string _a = "а";
+        std::string _z = "я";
+        std::string _A = "А";
+        std::string _Z = "Я";
+        std::u16string a;
+        std::u16string z;
+        std::u16string A;
+        std::u16string Z;
+        Utils::fromUTF8(_a, a);
+        Utils::fromUTF8(_z, z);
+        Utils::fromUTF8(_A, A);
+        Utils::fromUTF8(_Z, Z);
         return (chr >= static_cast<char16_t>(a[0]) && chr <= static_cast<char16_t>(z[0])) || (chr >= static_cast<char16_t>(A[0]) && chr <= static_cast<char16_t>(Z[0]));
     }
 
